@@ -3,7 +3,7 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime
 
-st.set_page_config(page_title="Will's EMA Scanner", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Will's EMA Scanner", layout="wide")
 st.title("📈 Will's EMA Scanner")
 st.caption("20/50 Bullish Crossover • Above 200 EMA • Recent Cross Filter • Live TradingView Charts")
 
@@ -43,14 +43,13 @@ def get_nasdaq100():
 @st.cache_data(ttl=86400)
 def get_russell1000():
     try:
-        # Improved iShares attempt
         tables = pd.read_html('https://www.ishares.com/us/products/239707/ishares-russell-1000-etf')
         for table in tables:
             if 'Ticker' in table.columns:
                 return table['Ticker'].dropna().tolist()
         return []
     except:
-        return []   # Fallback - Russell 1000 can be slow/unstable
+        return []
 
 presets = {
     "Will's List": will_list,
@@ -61,37 +60,26 @@ presets = {
 
 # ====================== SIDEBAR ======================
 with st.sidebar:
-    st.header("Scanner Settings")
-    preset_name = st.selectbox("Choose Universe", list(presets.keys()))
+    st.header("⚙️ Scanner Settings")
+    preset_name = st.selectbox("Universe", list(presets.keys()))
     tickers = presets[preset_name]
-    
     lookback = st.slider("Cross in last X days", 1, 10, 5)
-    
-    st.write(f"**{len(tickers)}** symbols")
-    
-    if st.button("🔄 Refresh Cache"):
+    st.write(f"**{len(tickers)}** symbols loaded")
+    if st.button("🔄 Refresh Data"):
         st.cache_data.clear()
         st.rerun()
 
-# ====================== MAIN CONTENT ======================
-col1, col2 = st.columns([3, 1])
-with col1:
-    st.subheader("EMA Scanner Results")
-with col2:
-    if st.button("🚀 Run Scan", type="primary", use_container_width=True):
-        run_scan = True
-    else:
-        run_scan = False
+# ====================== MAIN ======================
+st.subheader("EMA Scanner Results")
 
-if run_scan:
+if st.button("🚀 Run Scan", type="primary", use_container_width=True):
     with st.spinner("Scanning..."):
         results = []
         data = yf.download(tickers, period="500d", group_by='ticker', auto_adjust=True, progress=False)
 
         for ticker in tickers:
             try:
-                df = data[ticker].dropna() if ticker in data.columns.get_level_values(0) else \
-                     yf.download(ticker, period="500d", auto_adjust=True, progress=False).dropna()
+                df = data[ticker].dropna() if ticker in data.columns.get_level_values(0) else yf.download(ticker, period="500d", auto_adjust=True, progress=False).dropna()
                 if len(df) < 200: continue
 
                 df['EMA20'] = df['Close'].ewm(span=20).mean()
@@ -123,26 +111,24 @@ if run_scan:
         if results:
             df_results = pd.DataFrame(results).sort_values('Days Ago')
 
-            # Color styling
-            def color_rows(row):
-                if row['Days Ago'] <= 2:
-                    return ['background-color: #90EE90'] * len(row)
-                elif row['Days Ago'] <= 5:
-                    return ['background-color: #FFFF99'] * len(row)
-                return ['background-color: #E0E0E0'] * len(row)
+            # Softer colors + better separation
+            def style_rows(row):
+                color = '#C8E6C9' if row['Days Ago'] <= 2 else ('#FFF9C4' if row['Days Ago'] <= 5 else '#ECEFF1')
+                return [f'background-color: {color}'] * len(row)
 
-            st.dataframe(df_results.style.apply(color_rows, axis=1), use_container_width=True, hide_index=True)
+            styled = df_results.style.apply(style_rows, axis=1)
+            st.dataframe(styled, use_container_width=True, hide_index=True)
 
             csv = df_results.to_csv(index=False).encode()
             st.download_button("📥 Download CSV", csv, f"ema_signals_{datetime.now().date()}.csv")
 
-            # TradingView Chart Section
+            # ====================== CHART SECTION (right after table) ======================
             st.divider()
-            st.subheader("📊 Detailed Chart")
-            selected = st.selectbox("Select ticker from results above:", df_results['Ticker'])
-            
+            st.subheader("📊 Chart for Selected Ticker")
+            selected = st.selectbox("Choose a ticker from the results above:", df_results['Ticker'])
+
             if selected:
-                st.markdown(f"**{selected}** — Full TradingView Chart (click inside to interact)")
+                st.markdown(f"**{selected}** — Interactive TradingView Chart (preloaded with moving averages)")
                 tv_html = f"""
                 <div style="height:780px; width:100%">
                   <div id="tv_widget"></div>
@@ -152,7 +138,8 @@ if run_scan:
                     "width": "100%", "height": "780", "symbol": "{selected}",
                     "interval": "D", "timezone": "Etc/UTC", "theme": "dark",
                     "style": "1", "locale": "en", "enable_publishing": false,
-                    "allow_symbol_change": true, "studies": ["MASimple@tv-basicstudies"],
+                    "allow_symbol_change": true,
+                    "studies": ["MASimple@tv-basicstudies","MASimple@tv-basicstudies","MASimple@tv-basicstudies"],
                     "container_id": "tv_widget"
                   }});
                   </script>
@@ -160,9 +147,9 @@ if run_scan:
                 """
                 st.components.v1.html(tv_html, height=820)
         else:
-            st.info(f"No signals in last {lookback} days above 200 EMA.")
+            st.info(f"No signals in the last {lookback} days above the 200 EMA.")
 else:
-    st.info("Click **Run Scan** to analyze your universe.")
+    st.info("Click **Run Scan** to analyze your selected universe.")
 
 st.divider()
-st.caption("Russell 1000 list may be limited (large index). Let me know if you want a static list added.")
+st.caption("Russell 1000 list is dynamic (may be limited). Let me know if you want a full static list added.")
