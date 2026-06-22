@@ -3,11 +3,43 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime
 
-st.set_page_config(page_title="Will's EMA Scanner", layout="wide")
-st.title("📈 Will's EMA Scanner")
-st.caption("20/50 Bullish Crossover • Above 200 EMA • Recent Cross Filter • Live TradingView Charts")
+st.set_page_config(page_title="Will's EMA Scanner", layout="wide", initial_sidebar_state="collapsed")
 
-# ====================== YOUR CUSTOM LIST ======================
+# ====================== MODERN 2026 FINTECH CSS ======================
+st.markdown("""
+<style>
+    .stApp { background-color: #0f1117; color: #e0e0e0; }
+    .main .block-container { padding-top: 2rem; max-width: 1400px; }
+    h1, h2, h3 { color: #ffffff; font-weight: 600; }
+    .metric-card {
+        background-color: #1a1d27;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        border: 1px solid #2a2f3a;
+        transition: all 0.2s ease;
+    }
+    .metric-card:hover { transform: translateY(-4px); box-shadow: 0 10px 30px rgba(74,144,226,0.2); }
+    .result-card {
+        background-color: #1a1d27;
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 16px;
+        border: 1px solid #2a2f3a;
+        transition: all 0.2s ease;
+    }
+    .result-card:hover { border-color: #4a90e2; box-shadow: 0 8px 25px rgba(74,144,226,0.15); }
+    .ticker-header { display: flex; align-items: center; gap: 14px; }
+    .ticker-logo { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; }
+    .positive { color: #00d26a; font-weight: 700; }
+    .stButton > button { background-color: #4a90e2; border-radius: 12px; height: 52px; font-size: 1.1rem; }
+</style>
+""", unsafe_allow_html=True)
+
+st.title("📈 Will's EMA Scanner")
+st.caption("Premium 2026 • 20/50 Bullish Crossover + Above 200 EMA • Beautiful Cards + TradingView")
+
+# ====================== DATA ======================
 raw_list = "NASDAQ:AXTI,NYSE:AVEX,NASDAQ:ASTS,AMEX:BITX,NYSE:LMT,NYSE:HII,NYSE:RTX,NASDAQ:SPCX,NYSE:GD,NYSE:VICI,NASDAQ:KTOS,NASDAQ:MSTR,NASDAQ:AAOI,NASDAQ:VIAV,NYSE:SCHW,NYSE:FICO,NYSE:MSCI,NYSE:DOCN,NYSE:JPM,NYSE:DELL,NASDAQ:LITE,NYSE:OXY,NYSE:CVX,NYSE:ABBV,NYSE:CRM,NYSE:XOM,NYSE:CLS,NASDAQ:APP,NYSE:WFC,NYSE:FN,NYSE:SPGI,NYSE:XPEV,NASDAQ:PLTR,NYSE:HPE,NYSE:STT,NASDAQ:VRTX,NASDAQ:DDOG,NASDAQ:COST,NYSE:NU,NASDAQ:SNPS,NYSE:BA,NYSE:NET,NYSE:MCO,NASDAQ:JD,NYSE:LLY,OTC:BYDDF,NYSE:VZ,NYSE:TWLO,NASDAQ:COIN,NYSE:BX,NYSE:V,NASDAQ:WMT,NASDAQ:QLYS,NASDAQ:INTU,NYSE:NVO,NYSE:AXP,NYSE:WCN,NASDAQ:RKLB,NYSE:KO,NYSE:BN,NYSE:MA,NASDAQ:DPZ,NYSE:EFX,NYSE:BAC,NYSE:WM,NASDAQ:CDNS,NASDAQ:ADBE,AMEX:KWEB,OTC:EVVTY,NYSE:NOW,NYSE:CRCL,NYSE:PINS,AMEX:GLD,NASDAQ:PDD,NYSE:BRK.B,NASDAQ:MNST,NYSE:BABA,NYSE:UPS,NYSE:ALL,NYSE:TJX,NYSE:LYV,NYSE:HLT,NASDAQ:VRSN,TSX:ATD,NASDAQ:LULU,NASDAQ:CZR,NYSE:GME,NYSE:MP,NYSE:FDX,NASDAQ:BKNG,NASDAQ:AXON,NYSE:BRO,NYSE:ENS,NASDAQ:BIDU,NYSE:DE,NASDAQ:MSFT,NASDAQ:FFIV,NASDAQ:HON,NASDAQ:TMUS,NASDAQ:MELI,NYSE:PGR,NYSE:MO,NASDAQ:DKNG,NASDAQ:CRWD,NASDAQ:PEP,NASDAQ:EBAY,NYSE:UNH,NASDAQ:ZS,NASDAQ:STX,NASDAQ:DLO,NASDAQ:ADSK,NYSE:PATH,NASDAQ:MAR,NASDAQ:FTNT,NYSE:ORCL,NASDAQ:OPEN,NYSE:OSCR,NYSE:CP,NASDAQ:NFLX,NYSE:CBRE,NASDAQ:EXPE,NASDAQ:EOSE,NASDAQ:PAYX,OTC:LVMUY,NASDAQ:AAPL,NASDAQ:SHOP,NYSE:CCJ,TSX:CSU,NASDAQ:SBUX,NASDAQ:LYFT,NASDAQ:IBKR,NASDAQ:PYPL,NYSE:TOST,NYSE:UBER,NASDAQ:TSLA,NASDAQ:ISRG,NASDAQ:FSLR,NASDAQ:ULTA,NYSE:NEE,NYSE:FIG,NYSE:CAVA,NASDAQ:ABNB,NASDAQ:CELH,NYSE:RBRK,NASDAQ:OSS,NASDAQ:GOOG,NYSE:S,NASDAQ:AVAV,NYSE:ETSY,NYSE:MDT,NYSE:UHAL,NASDAQ:RIVN,NASDAQ:ONDS,NASDAQ:TSCO,NASDAQ:META,NASDAQ:DUOL,NASDAQ:TTD,NYSE:CMG,NASDAQ:PANW,NASDAQ:NBIS,NYSE:HD,NASDAQ:BOTZ,NASDAQ:UAL,NYSE:ZETA,AMEX:ARKK,NASDAQ:CAKE,NYSE:RACE,NASDAQ:APLD,NYSE:LOW,NYSE:NKE,NASDAQ:SOUN,NYSE:DAL,NASDAQ:CRWV,NASDAQ:TXRH,NYSE:CHWY,NASDAQ:CEG,NYSE:LMND,NYSE:SPOT,NASDAQ:CORZ,NASDAQ:HOOD,NYSE:LUV,NASDAQ:SOFI,NASDAQ:FSLY,NYSE:COHR,NYSE:EL,NYSE:ANET,NASDAQ:AMZN,NASDAQ:NVDA,NYSE:ANF,NYSE:DIS,NYSE:ONON,NYSE:ELF,NYSE:VST,NYSE:CAT,NASDAQ:WYNN,NASDAQ:IREN,NYSE:DECK,NASDAQ:ASML,NYSE:IONQ,NYSE:TE,NASDAQ:GRAB,NYSE:DHI,NASDAQ:AAL,NYSE:LEN,NASDAQ:SYM,NASDAQ:PGY,NASDAQ:LRCX,NYSE:OKLO,NYSE:TOL,NASDAQ:CART,NASDAQ:AMAT,NASDAQ:TEM,NASDAQ:SWKS,NASDAQ:AFRM,NASDAQ:USAR,NASDAQ:AMKR,NASDAQ:AVGO,NASDAQ:DASH,NASDAQ:AMD,NYSE:VRT,NASDAQ:ARM,NASDAQ:DLTR,NASDAQ:TTWO,NASDAQ:NXPI,CBOE:ARKG,NYSE:RDDT,NYSE:KLAR,NYSE:BLDR,NASDAQ:FLNC,NASDAQ:QCOM,NASDAQ:TQQQ,NYSE:TSM,NASDAQ:TXN,NASDAQ:ROOT,NASDAQ:MRVL,NYSE:RBLX,NASDAQ:NVTS,NYSE:BROS,NASDAQ:TMDX,NASDAQ:ON,NYSE:AMPX,NASDAQ:MPWR,AMEX:UUUU,NASDAQ:MU,NASDAQ:CRDO,NYSE:RKT,NYSE:RH,OTC:KRKNF,NASDAQ:ENPH,NASDAQ:CBRS,NASDAQ:SMCI,NASDAQ:INTC,NASDAQ:CIFR,NYSE:GLW,NYSE:HIMS,NASDAQ:ALAB,NASDAQ:NNE,NASDAQ:SNDK,NASDAQ:PENG,NYSE:SMR,NYSE:BE,AMEX:SOXL"
 
 def clean_ticker(t):
@@ -21,58 +53,43 @@ def clean_ticker(t):
 
 will_list = [clean_ticker(t) for t in raw_list.split(',') if t.strip()]
 
-# ====================== INDEX PRESETS ======================
 @st.cache_data(ttl=86400)
-def get_sp500():
-    try:
-        return pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]['Symbol'].tolist()
-    except:
-        return []
+def get_sp500(): 
+    try: return pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]['Symbol'].tolist()
+    except: return []
 
 @st.cache_data(ttl=86400)
 def get_nasdaq100():
     try:
         tables = pd.read_html('https://en.wikipedia.org/wiki/Nasdaq-100')
-        for table in tables:
-            if 'Ticker' in table.columns:
-                return table['Ticker'].tolist()
+        for t in tables:
+            if 'Ticker' in t.columns: return t['Ticker'].tolist()
         return []
-    except:
-        return []
+    except: return []
 
 @st.cache_data(ttl=86400)
 def get_russell1000():
     try:
         tables = pd.read_html('https://www.ishares.com/us/products/239707/ishares-russell-1000-etf')
-        for table in tables:
-            if 'Ticker' in table.columns:
-                return table['Ticker'].dropna().tolist()
+        for t in tables:
+            if 'Ticker' in t.columns: return t['Ticker'].dropna().tolist()
         return []
-    except:
-        return []
+    except: return []
 
-presets = {
-    "Will's List": will_list,
-    "S&P 500": get_sp500(),
-    "Nasdaq 100": get_nasdaq100(),
-    "Russell 1000": get_russell1000(),
-}
+presets = {"Will's List": will_list, "S&P 500": get_sp500(), "Nasdaq 100": get_nasdaq100(), "Russell 1000": get_russell1000()}
 
-# ====================== SIDEBAR ======================
+# Sidebar
 with st.sidebar:
-    st.header("⚙️ Scanner Settings")
+    st.header("⚙️ Settings")
     preset_name = st.selectbox("Universe", list(presets.keys()))
     tickers = presets[preset_name]
-    lookback = st.slider("Cross in last X days", 1, 10, 5)
-    st.write(f"**{len(tickers)}** symbols loaded")
-    if st.button("🔄 Refresh Data"):
+    lookback = st.slider("Show crosses from last X days", 1, 10, 5)
+    if st.button("🔄 Refresh Cache"): 
         st.cache_data.clear()
         st.rerun()
 
-# ====================== MAIN ======================
-st.subheader("EMA Scanner Results")
-
-if st.button("🚀 Run Scan", type="primary", use_container_width=True):
+# ====================== SCAN ======================
+if st.button("🚀 Run EMA Scan", type="primary", use_container_width=True):
     with st.spinner("Scanning..."):
         results = []
         data = yf.download(tickers, period="500d", group_by='ticker', auto_adjust=True, progress=False)
@@ -93,63 +110,81 @@ if st.button("🚀 Run Scan", type="primary", use_container_width=True):
 
                 if len(recent) > 0 and above_200:
                     cross_row = recent.iloc[-1]
-                    cross_date = cross_row.name
-                    days_ago = (df.index[-1] - cross_date).days
-
+                    days_ago = (df.index[-1] - cross_row.name).days
                     results.append({
                         'Ticker': ticker,
                         'Close': round(latest['Close'], 2),
                         'Cross Price': round(cross_row['Close'], 2),
                         '% Above 200': round(((latest['Close'] / latest['EMA200']) - 1) * 100, 2),
-                        'Cross Date': cross_date.strftime('%Y-%m-%d'),
+                        'Cross Date': cross_row.name.strftime('%Y-%m-%d'),
                         'Days Ago': days_ago,
-                        'Volume': int(latest.get('Volume', 0)),
                     })
-            except:
-                continue
+            except: continue
 
         if results:
             df_results = pd.DataFrame(results).sort_values('Days Ago')
 
-            # Softer colors + better separation
-            def style_rows(row):
-                color = '#C8E6C9' if row['Days Ago'] <= 2 else ('#FFF9C4' if row['Days Ago'] <= 5 else '#ECEFF1')
-                return [f'background-color: {color}'] * len(row)
+            st.markdown("### 📋 Recent Signals")
+            cols = st.columns(3)
+            for i, row in df_results.iterrows():
+                with cols[i % 3]:
+                    logo = f"https://logo.clearbit.com/{row['Ticker'].lower()}.com"
+                    st.markdown(f"""
+                    <div class="result-card">
+                        <div class="ticker-header">
+                            <img src="{logo}" class="ticker-logo" onerror="this.src='https://via.placeholder.com/48/1a1d27/ffffff?text={row['Ticker'][:2]}'">
+                            <div>
+                                <h3 style="margin:0;">{row['Ticker']}</h3>
+                                <small style="color:#888;">{row['Days Ago']} day{'s' if row['Days Ago']>1 else ''} ago</small>
+                            </div>
+                        </div>
+                        <div style="font-size:1.8rem; font-weight:700; margin:12px 0;">${row['Close']}</div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <div><small>% Above 200</small><br><span class="positive">+{row['% Above 200']}%</span></div>
+                            <div style="text-align:right;"><small>Cross Price</small><br>${row['Cross Price']}</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-            styled = df_results.style.apply(style_rows, axis=1)
-            st.dataframe(styled, use_container_width=True, hide_index=True)
-
-            csv = df_results.to_csv(index=False).encode()
-            st.download_button("📥 Download CSV", csv, f"ema_signals_{datetime.now().date()}.csv")
-
-            # ====================== CHART SECTION (right after table) ======================
             st.divider()
-            st.subheader("📊 Chart for Selected Ticker")
-            selected = st.selectbox("Choose a ticker from the results above:", df_results['Ticker'])
-
+            selected = st.selectbox("Select ticker for detailed view + chart", df_results['Ticker'])
             if selected:
-                st.markdown(f"**{selected}** — Interactive TradingView Chart (preloaded with moving averages)")
+                row = df_results[df_results['Ticker'] == selected].iloc[0]
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div style="display:flex; align-items:center; gap:20px;">
+                        <img src="https://logo.clearbit.com/{selected.lower()}.com" style="width:80px;height:80px;border-radius:12px;" onerror="this.src='https://via.placeholder.com/80/1a1d27/ffffff?text={selected[:2]}'">
+                        <div>
+                            <h2 style="margin:0;">{selected}</h2>
+                            <p style="color:#00d26a; margin:4px 0;">Bullish 20/50 Crossover • {row['Days Ago']} days ago</p>
+                        </div>
+                        <div style="margin-left:auto; text-align:right;">
+                            <div style="font-size:2.4rem; font-weight:700;">${row['Close']}</div>
+                            <div class="positive">+{row['% Above 200']}% above 200 EMA</div>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
                 tv_html = f"""
-                <div style="height:780px; width:100%">
+                <div style="border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.4);">
                   <div id="tv_widget"></div>
                   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-                  <script type="text/javascript">
+                  <script>
                   new TradingView.widget({{
                     "width": "100%", "height": "780", "symbol": "{selected}",
                     "interval": "D", "timezone": "Etc/UTC", "theme": "dark",
-                    "style": "1", "locale": "en", "enable_publishing": false,
-                    "allow_symbol_change": true,
-                    "studies": ["MASimple@tv-basicstudies","MASimple@tv-basicstudies","MASimple@tv-basicstudies"],
+                    "style": "1", "locale": "en", "studies": ["MASimple@tv-basicstudies","MASimple@tv-basicstudies","MASimple@tv-basicstudies"],
                     "container_id": "tv_widget"
                   }});
                   </script>
                 </div>
                 """
                 st.components.v1.html(tv_html, height=820)
-        else:
-            st.info(f"No signals in the last {lookback} days above the 200 EMA.")
-else:
-    st.info("Click **Run Scan** to analyze your selected universe.")
 
-st.divider()
-st.caption("Russell 1000 list is dynamic (may be limited). Let me know if you want a full static list added.")
+        else:
+            st.info("No signals found.")
+else:
+    st.info("👆 Click **Run EMA Scan** to see the new beautiful interface.")
+
+st.caption("Modern Fintech UI • Logos via Clearbit • Charts via TradingView")
